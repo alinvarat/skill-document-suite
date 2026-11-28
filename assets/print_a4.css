@@ -340,3 +340,6 @@ figcaption {
 .toc > ul > li > a { font-weight: 600; }
 .toc a { color: #1a1a1a; text-decoration: none; }
 .toc-title { font-size: 20px; font-weight: 700; color: #1e3a8a; margin-bottom: 12px; }
+
+/* Thai stacked marks (ที่ ทั้) must stay inside the heading box, or Chrome paints them at the bottom of the previous page */
+h1, h2, h3, h4 { line-height: 1.5; padding-top: 0.12em; }
