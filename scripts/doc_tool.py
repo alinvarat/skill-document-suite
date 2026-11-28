@@ -81,7 +81,7 @@ def html_to_pdf(html_path, pdf_path, wait_ms=0, quiet=False):
     return pages
 
 
-def md_to_html_str(md_text, title="", css_path=None, landscape=False, zoom=1.0):
+def md_to_html_str(md_text, title="", css_path=None, landscape=False, zoom=1.0, cover=None, toc=False, footer=""):
     import markdown
 
     css_file = css_path or DEFAULT_CSS_PATH
@@ -98,10 +98,18 @@ def md_to_html_str(md_text, title="", css_path=None, landscape=False, zoom=1.0):
         )
     has_math = "$$" in md_text or bool(re.search(r"(?<!\$)\$[^\$\n]+\$(?!\$)", md_text))
 
+    if toc:
+        md_text = '<div class="toc-page" markdown="1">\n<div class="toc-title">สารบัญ</div>\n\n[TOC]\n\n</div>\n\n' + md_text
     body = markdown.markdown(
         md_text,
-        extensions=["tables", "fenced_code", "nl2br", "sane_lists", "toc"],
+        extensions=["tables", "fenced_code", "nl2br", "sane_lists", "toc", "md_in_html"],
+        extension_configs={"toc": {"toc_depth": "2-3"}},
     )
+    if cover:
+        kicker, sub, meta = (cover + "||").split("|")[:3]
+        body = (f'<section class="cover"><div class="cover-kicker">{html.escape(kicker)}</div>'
+                f'<h1 class="cover-title">{html.escape(title or "Document")}</h1>'
+                f'<div class="cover-sub">{html.escape(sub)}</div><div class="cover-meta">{html.escape(meta)}</div></section>\n' + body)
     extra_css = ""
     if landscape:
         extra_css += "\n@page { size: A4 landscape; margin: 12mm 15mm; }\nbody { max-width: 1120px; }\n"
@@ -109,6 +117,12 @@ def md_to_html_str(md_text, title="", css_path=None, landscape=False, zoom=1.0):
         margin_mm = max(int(15 * zoom), 9)
         extra_css += f"\n@page {{ margin: {margin_mm}mm; }}\nbody {{ zoom: {zoom:.3f}; }}\n"
 
+    if footer:
+        fq = footer.replace("\\", "").replace('"', "'")
+        extra_css += ('\n@page { @bottom-left { content: "' + fq + '"; font-family: Sarabun, sans-serif; font-size: 8.5pt; color: #64748b; }'
+                      ' @bottom-right { content: counter(page) " / " counter(pages); font-family: Sarabun, sans-serif; font-size: 8.5pt; color: #64748b; } }\n')
+        if cover:
+            extra_css += "@page :first { @bottom-left { content: none; } @bottom-right { content: none; } }\n"
     extra_head = KATEX_MERMAID_HEAD if (has_mermaid or has_math) else ""
     return (
         f"""<!doctype html>
@@ -144,6 +158,9 @@ def cmd_md2pdf(args):
                 css_path=args.css,
                 landscape=args.landscape,
                 zoom=z,
+                cover=args.cover,
+                toc=args.toc,
+                footer=args.footer if args.footer is not None else (args.title or ""),
             )
             open(html_path, "w", encoding="utf-8").write(html_str)
             pages = html_to_pdf(html_path, args.output, wait_ms=2500 if needs_wait else 0, quiet=True)
@@ -527,6 +544,36 @@ def cmd_pdf_audit(args):
                 color_pix.save(img_path)
                 print(f"page_{i}_png={img_path}")
 
+        fonts = set()
+        for page in doc:
+            for f in page.get_fonts(full=False):
+                fonts.add(f[3].split("+")[-1])
+        print("fonts=" + ",".join(sorted(fonts)))
+        allowed = tuple(x.strip().lower() for x in (args.font or "Sarabun").split(","))
+        odd = [f for f in fonts if not f.lower().startswith(allowed) and not re.search(r"mono|consol|courier|katex|math|symbol", f, re.I)]
+        if odd:
+            issues.append("FONT_FALLBACK: " + ",".join(sorted(odd)) + " (Thai in code spans/blocks or missing glyphs; check pdffonts)")
+        text = "".join(page.get_text() for page in doc)
+        gate = {"raw_bold_md": text.count("**"), "raw_html_tag": len(re.findall(r"</?(?:div|span|br|p|table|td|tr|section)\b[^>]*>", text)),
+                "replacement_char": text.count("\ufffd"), "ballot_box": text.count("\u2610"), "raw_toc_marker": text.count("[TOC]")}
+        print("text_gate=" + ",".join(f"{k}:{v}" for k, v in gate.items()))
+        for k, v in gate.items():
+            if v:
+                issues.append(f"TEXT_GATE_{k.upper()}: {v}")
+        if out_dir and args.contact_sheet:
+            from PIL import Image
+            pngs = [os.path.join(out_dir, f"page_{i:02d}.png") for i in range(1, n_pages + 1)]
+            for n, start in enumerate(range(0, len(pngs), 16), 1):
+                ims = [Image.open(x) for x in pngs[start:start + 16]]
+                ims = [im.resize((im.width // 2, im.height // 2)) for im in ims]
+                w, h = ims[0].size
+                sheet = Image.new("RGB", (4 * w, ((len(ims) + 3) // 4) * h), "white")
+                for k, im in enumerate(ims):
+                    sheet.paste(im, ((k % 4) * w, (k // 4) * h))
+                sp = os.path.join(out_dir, f"contact_{n:02d}.png")
+                sheet.save(sp)
+                print(f"contact_sheet={sp}")
+
     if issues:
         for iss in issues:
             print(f"AUDIT_WARN={iss}")
@@ -584,6 +631,9 @@ def main():
     p_md2pdf.add_argument("--landscape", action="store_true")
     p_md2pdf.add_argument("--fit-one-page", action="store_true")
     p_md2pdf.add_argument("--keep-html", action="store_true")
+    p_md2pdf.add_argument("--cover", default=None, help='cover page: "kicker|subtitle|meta" (title comes from --title)')
+    p_md2pdf.add_argument("--toc", action="store_true", help="table of contents page from h2/h3")
+    p_md2pdf.add_argument("--footer", default=None, help="footer text with page x / y (default: --title; empty string disables)")
     p_md2pdf.set_defaults(func=cmd_md2pdf)
 
     p_html2pdf = sub.add_parser("html2pdf")
@@ -625,6 +675,8 @@ def main():
     p_audit.add_argument("input")
     p_audit.add_argument("--expect-pages", type=int, default=None)
     p_audit.add_argument("--out-dir", default=None)
+    p_audit.add_argument("--font", default="Sarabun", help="comma list of allowed font families")
+    p_audit.add_argument("--contact-sheet", action="store_true", help="also write contact_NN.png (16 pages each) into --out-dir")
     p_audit.set_defaults(func=cmd_pdf_audit)
 
     p_merge = sub.add_parser("pdf-merge")

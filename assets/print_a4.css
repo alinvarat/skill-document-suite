@@ -264,7 +264,7 @@ blockquote, .callout {
 
 /* Code, Figures, Diagrams */
 code, pre {
-  font-family: "Consolas", "JetBrains Mono", monospace;
+  font-family: "Consolas", "JetBrains Mono", "Sarabun", monospace; /* Sarabun fallback keeps Thai inside code in Sarabun */
   font-size: 12px;
 }
 
@@ -325,3 +325,18 @@ figcaption {
   padding-bottom: 2px;
   vertical-align: bottom;
 }
+
+/* Cover, table of contents, running footer (md2pdf --cover/--toc/--footer) */
+.cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; break-after: page; padding: 0 6mm; }
+.cover .cover-kicker { font-size: 13px; letter-spacing: .08em; color: #475569; text-transform: uppercase; margin-bottom: 10px; }
+.cover h1.cover-title { font-size: 34px; line-height: 1.25; border: none; margin: 0 0 12px; padding: 0; }
+.cover .cover-sub { font-size: 17px; color: #334155; margin-bottom: 28px; }
+.cover .cover-meta { font-size: 13px; color: #475569; border-top: 2px solid #1e3a8a; padding-top: 10px; }
+.toc-page { break-after: page; }
+.toc-page h2 { margin-top: 0; }
+.toc ul { list-style: none; padding-left: 0; margin: 0; }
+.toc ul ul { padding-left: 1.4em; }
+.toc li { margin: 3px 0; }
+.toc > ul > li > a { font-weight: 600; }
+.toc a { color: #1a1a1a; text-decoration: none; }
+.toc-title { font-size: 20px; font-weight: 700; color: #1e3a8a; margin-bottom: 12px; }

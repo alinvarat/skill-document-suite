@@ -35,7 +35,7 @@ Run commands with `python3 "~/.claude/skills/document-suite/scripts/doc_tool.py"
 ### A. Print-Ready A4 PDF (Markdown or HTML -> Headless Chrome)
 Supports Markdown tables, HTML layout classes (`print_a4.css`), **Mermaid diagrams** (```` ```mermaid ````), and **KaTeX math** (`$...$`, `$$...$$`):
 ```bash
-python3 "~/.claude/skills/document-suite/scripts/doc_tool.py" md2pdf input.md output.pdf --title "Document Title" [--fit-one-page] [--landscape] [--keep-html]
+python3 "~/.claude/skills/document-suite/scripts/doc_tool.py" md2pdf input.md output.pdf --title "Document Title" [--cover "kicker|subtitle|meta"] [--toc] [--footer "text" | --footer ""] [--fit-one-page] [--landscape] [--keep-html]
 python3 "~/.claude/skills/document-suite/scripts/doc_tool.py" html2pdf input.html output.pdf [--wait-ms 2500]
 ```
 - **Built-in layout classes (`assets/print_a4.css`)**:
@@ -69,7 +69,7 @@ python3 "~/.claude/skills/document-suite/scripts/doc_tool.py" json2pptx slides.j
 ### E. PDF Audit, Inspection, Merge & Split
 - **Automated Layout Audit & PNG Export** (checks page count, detects accidental trailing spillover pages with `< 1.2%` ink coverage, and exports PNGs):
   ```bash
-  python3 "~/.claude/skills/document-suite/scripts/doc_tool.py" pdf-audit output.pdf --expect-pages 1 --out-dir pages_qa/
+  python3 "~/.claude/skills/document-suite/scripts/doc_tool.py" pdf-audit output.pdf --expect-pages 1 --out-dir pages_qa/ [--contact-sheet] [--font "Sarabun"]
   ```
 - **Info & Markdown extraction**: `pdf-info input.pdf --md`
 - **Merge / Split PDFs**: `pdf-merge merged.pdf part1.pdf part2.pdf` and `pdf-split input.pdf extracted.pdf --pages 1-2,4`
